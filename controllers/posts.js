@@ -18,8 +18,16 @@ export const getPosts = async (req, res) => {
       .sort({ _id: -1 })
       .limit(LIMIT)
       .skip(startIndex);
+
+    const formattedPosts = posts.map((post) => {
+      if (post.selectedFile && post.selectedFile.data && post.selectedFile.data.data) {
+        post.selectedFile = `data:${post.selectedFile.contentType};base64,${Buffer.from(post.selectedFile.data.data).toString('base64')}`;
+      }
+      return post;
+    });
+
     res.status(200).json({
-      data: posts,
+      data: formattedPosts,
       currentPage: Number(page),
       numberOfPages: Math.ceil(total / LIMIT),
     });
@@ -33,6 +41,10 @@ export const getPost = async (req, res) => {
 
   try {
     const post = await postMessage.findById(id);
+
+    if (post.selectedFile && post.selectedFile.data && post.selectedFile.data.data) {
+      post.selectedFile = `data:${post.selectedFile.contentType};base64,${Buffer.from(post.selectedFile.data.data).toString('base64')}`;
+    }
 
     res.status(200).json(post);
   } catch (error) {
@@ -57,10 +69,19 @@ export const getPostsBySearch = async (req, res) => {
 };
 
 export const createPost = async (req, res) => {
-  const post = req.body;
+  const { title, message, tags, name } = req.body;
+  const file = req.file;
+
   const newPost = new postMessage({
-    ...post,
+    title,
+    message,
+    tags,
+    name,
     creator: req.userId,
+    selectedFile: {
+      data: file.buffer,
+      contentType: file.mimetype,
+    },
     createdAt: new Date().toISOString(),
   });
 
